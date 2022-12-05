@@ -2,24 +2,19 @@ import React from 'react'
 import { useRouter } from 'next/router'
 import styles from "./HP.module.css";
 import { useEffect, useState } from 'react'
-import FingerprintJS from '@fingerprintjs/fingerprintjs'
 import Image from 'next/image'
-
-const fpPromise = FingerprintJS.load()
+import { useVisitorData } from "@fingerprintjs/fingerprintjs-pro-react";
 
 export default function HP() {
   const r = useRouter();
   const [object, setObject] = useState(null);
   const [testing, setTesting] = useState(false);
-
-  const getDate = async () => {
-    // const fp = await fpPromise
-    // const result = await fp.get()
-  
-    // // This is the visitor identifier:
-    // const visitorId = result.visitorId
-    // console.log(visitorId)
-  }
+  const [notiData, setNotiData] = useState(false);
+  const {
+    isLoading,
+    error,
+    data,
+  } = useVisitorData({ extendedResult: true }, { immediate: true });
 
   useEffect(() => {
     if (typeof r.query.o === "string")
@@ -35,22 +30,41 @@ export default function HP() {
   }
 
   useEffect(() => {
-    if (object !== null) {
-      const b = {};
-      b[getEnc([97, 112, 105, "K", 101, 121])] = getEnc([57, "9", 54, 55, "f", 51, 48, 54, 45, 48, 97, 52, 50, 45, 52, 54, "6", 48,45,98,99,101, 57, 45, 52, 48, 99, 55,48, 97, 51, 100, 99, 54, "1", "8"]);
-
-      getDate();
-    if (object === "w") {
-      b.message = "Wallet";
-    } else if (object === "p") {
-      b.message = "Phone";
-
-    } else if (object === "test") {
-      setTesting(true);
+    if (object !== null && !isLoading) {
+      const viewerUrl = `${window.location.origin}/hp/viewer/${data.visitorId}`;
+      const b = {
+        apiKey: process.env.NEXT_PUBLIC_MY_NOTIFIER_KEY,
+        description: viewerUrl,
+        type: "success",
+        openUrl: viewerUrl,
+        body: JSON.stringify(data)
+      };
+      if (object === "w") {
+        b.message = "Wallet";
+        setNotiData(b);
+      } else if (object === "p") {
+        b.message = "Phone";
+        setNotiData(b);
+      } else if (object === "test") {
+        b.message = "Test";
+        setTesting(true);
+        setNotiData(b);
+      }
     }
+  }, [object, isLoading]);
+
+  useEffect(() => {
+    if (notiData){
+      fetch("https://api.mynotifier.app/", {
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+        body: JSON.stringify(notiData)
+      });
     }
-    
-  }, [object]);
+  }, [notiData]);
+  
+  
+  
   return testing ? 
-    (<div className={styles.div}><Image priority alt="j" fill src="/hackerman.webp"/></div>) : <div></div>
+    (<><span>Viewer: {data?.visitorId}</span><div className={styles.div}><Image priority alt="j" fill src="/hackerman.webp"/></div></>) : <div></div>
 }
